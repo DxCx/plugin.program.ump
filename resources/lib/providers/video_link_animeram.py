@@ -8,46 +8,15 @@ domain="http://www.animeram.me"
 encoding=None
 
 slower=0
-def codify(name, prv, url):
-	if prv in ["videoweed", "novamov"]:
-		return re.findall("embed\.php\?v\=(.+?)&", url)[0],None
-	elif prv in ["auengine"]:
-		purl=urlparse.urlparse(url)
-		return urlparse.parse_qs(purl.query).get("file",[""])[0],None
-	elif prv in ["mp4upload", "videonest"]:
-		return re.findall("embed-(.+?)\.html", url)[0],None
-	elif prv in ["acercloud"]:
-		return url,"http://animebam.com"
-	elif prv in ["yourupload"]:
-		return re.findall("yourupload.com/embed/(.+)", url)[0].split("&")[0],url
-	return url,None
 
 def add_mirror(i, name, url):
-	URL_TO_PROVIDER = {
-			"auengine." : 'auengine',
-			"mp4upload.com": 'mp4upload',
-			"videonest.net": 'videonest',
-			"animebam.com": 'acercloud',
-			"yourupload.": 'yourupload',
-			"videoweed.": 'videoweed',
-			"novamov.com": 'novamov',
-	}
-
-	provider = None
-
-	for provider_url, provider_name in URL_TO_PROVIDER.iteritems():
-		if provider_url in url:
-			provider = provider_name
-			break
-	
-	if not provider:
-		ump.add_log("animeram found unrecognized source : %s" % url)
-		return
-	
-	uphash,upref=codify(name, provider, url)
-	parts=[{"url_provider_name":provider, "url_provider_hash":uphash,"referer":upref}]
-	# TODO: Mirror nameing
-	ump.add_mirror(parts, name)
+    pfx = []
+    # TODO: Mirror nameing
+    if "[Dubbed]" in name:
+        pfx.append("[D]")
+    pfx.append(i["title"])
+    parts=[{"url": url}]
+    ump.add_mirror(parts, "".join(pfx))
 
 def match_uri(results,refnames):
 	for result in results:

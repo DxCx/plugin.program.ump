@@ -26,6 +26,8 @@ import xbmcplugin
 
 from unidecode import unidecode
 
+from urlresolver.types import HostedMediaFile
+
 from ump import defs
 from ump import task
 from ump import providers
@@ -237,25 +239,11 @@ class ump():
 	def add_mirror(self,parts,name):
 		if not self.terminate and isinstance(parts,list) and len(parts)>0:
 			for part in parts:
-				upname=part.get("url_provider_name",None)
-				uphash=part.get("url_provider_hash",None)
-				#sanity check
-				if upname is None or uphash is None:
-					return False
+				resolver = HostedMediaFile(url=part["url"])
 				#check if there is an appropriate url provider
-				if not providers.is_loadable(self.content_type,"url",upname,self.loadable_uprv):
-					self.add_log("no appropriate url provider. Skipping : %s , %s" % (str(self.content_type),str(upname)))
+				if not resolver.valid_url():
+					self.add_log("no appropriate url provider. Skipping : %s , %s" % (str(self.content_type),str(part["url"])))
 					return False
-				#check if provider first time. checked ids are dynamic on provider name
-				elif upname in self.checked_uids[self.content_type].keys():
-				#check if already proccesed
-					if uphash in self.checked_uids[self.content_type][upname]:
-						self.add_log("already processed, skipping :%s , %s, %s " % (str(self.content_type),str(upname),str(uphash)))
-						return False
-				else:
-				#if first time, create list dynamically
-					self.checked_uids[self.content_type][upname]=[]
-				self.checked_uids[self.content_type][upname].append(uphash)
 			self.tm.add_queue(target=self._on_new_id, args=(parts,name),pri=5)
 		else:
 			return False
@@ -351,16 +339,36 @@ class ump():
 		metaf=getattr(meta,self.content_type)
 		#if urls require validation and url is not validated or timed out
 		if not "uptime" in part.keys() or time.time()-part["uptime"]>self.urlval_tout:
-			provider=providers.load(self.content_type,"url",part["url_provider_name"])
+			resolver = HostedMediaFile(url=part["url"])
 			try:
-				self.add_log("validating %s:%s"%(part["url_provider_name"],part["url_provider_hash"]))
-				part["urls"]=provider.run(part["url_provider_hash"],self,part.get("referer",""))
-			except (timeout,urllib2.URLError,urllib2.HTTPError),e:
-				self.add_log("dismissed due to timeout: %s " % part["url_provider_name"])
 				part["urls"]={}
+				resolved_url = resolver.resolve()
+				self.add_log("validating %s:%s"%(resolver.get_host(),resolver.get_media_id()))
+
+				# Mirror duplication check
+				upname=resolver.get_host()
+				uphash=resolver.get_media_id()
+				if not len(upname) or not len(uphash) or not resolved_url:
+					self.add_log("%s failed validation" % part["url"])
+					return False
+
+				#check if provider first time. checked ids are dynamic on provider name
+				if upname in self.checked_uids[self.content_type].keys():
+				#check if already proccesed
+					if uphash in self.checked_uids[self.content_type][upname]:
+						self.add_log("already processed, skipping :%s , %s, %s " % (str(self.content_type),str(upname),str(uphash)))
+						return False
+				else:
+				#if first time, create list dynamically
+					self.checked_uids[self.content_type][upname]=[]
+				self.checked_uids[self.content_type][upname].append(uphash)
+
+				# TODO: in the future handle mirrosr
+				part["urls"]={"video": resolved_url}
+			except (timeout,urllib2.URLError,urllib2.HTTPError),e:
+				self.add_log("dismissed due to timeout: %s " % part["url"])
 			except Exception,e:
 				self.notify_error(e)
-				part["urls"]={}
 			#validate url by downloading header (and check quality)
 			for key in part["urls"].keys():
 				try:
@@ -377,7 +385,7 @@ class ump():
 				except Exception,e:
 					self.notify_error(e)
 					part["urls"].pop(key)
-					self.add_log("key removed : %s, %s"%(key,part["url_provider_name"]))
+					self.add_log("key removed : %s"%key)
 			part["uptime"]=time.time()
 		return part
 
