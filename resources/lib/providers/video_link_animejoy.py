@@ -98,7 +98,7 @@ def run(ump):
 		time.sleep(slower)
 		iframe=ump.get_page(iframes[0],encoding)
 		link=re.findall('<source src="(.*?)" type=',iframe)[0]
-		parts=[{"url_provider_name":"transparent", "url_provider_hash":{"video":link}}]
+                parts=[{"url": link, "transparent": True}]
 		ump.add_mirror(parts,"%s %s"%("[HS:EN]",i["title"]))
 
 	if not found:

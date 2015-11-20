@@ -6,31 +6,17 @@ domain="http://dizipub.com"
 encoding="utf-8"
 
 
-def crawl_movie_page(mpage):
-	#check pub player
-	google=re.findall('(http\://dizipub.com/player/.*?)"',mpage)
-	if len(google)>0:
-		return ("google",{"url":google[0],"referer":domain})
-	okru=re.findall('mid\%3D(.*?)"',mpage)
-	if len(okru)>0:
-		return ("okru",okru[0])
-	okru2=re.findall('"http://ok.ru/videoembed/(.*?)"',mpage)
-	if len(okru2)>0:
-		return ("okru",okru2[0])
-	vkfix=re.findall('iframe.*?src="(http://vkfix.com.*?)"',mpage)
-	if len(vkfix)>0:
-		return ("vkfix",vkfix[0])
-	cloudy=re.findall('iframe.*?src="(.*?cloudy.*?)"',mpage)
-	if len(cloudy)>0:
-		hash=urlparse.parse_qs(urlparse.urlparse(cloudy[0]).query).get("id")[0]
-		return ("cloudy",hash)
-	openload=re.findall('<iframe src="https://openload.co/embed/(.*?)/',mpage)
-	if len(openload)>0:
-		return ("openload",openload[0])
-	return None,None
+def crawl_movie_page(u, mpage=None):
+	if mpage is None:
+		mpage=ump.get_page(u,encoding)
+	iframe = re.findall("<iframe.+?src=\"(.+?)\"", mpage, re.DOTALL)
+	if len(iframe) != 4:
+		ump.add_log("unable to parse %s" % u)
+		return None
+	return {"url": iframe[2]}
 
-def return_links(name,mp,h):
-	parts=[{"url_provider_name":mp, "url_provider_hash":h}]
+def return_links(name,part):
+	parts=[part]
 	mname="[HS:TR]%s" % (name,)
 	ump.add_mirror(parts,mname)
 
@@ -72,12 +58,11 @@ def run(ump):
 			ename="%s %dx%d %s" % (result["value"],s,e,i["title"])
 			ump.add_log("dizipub matched %s " % (ename,))
 			mpage=ump.get_page(u,encoding)
-			mp,h=crawl_movie_page(mpage)
-			if not mp is None:
-				return_links(ename,mp,h)
+			part=crawl_movie_page(u, mpage)
+			if not part is None:
+				return_links(ename,part)
 			alts=re.findall('><a href="(.*?)"><span class="listed-item">',mpage)
 			for alt in alts:
-				mpage=ump.get_page(alt,encoding)
-				mp,h=crawl_movie_page(mpage)
-				if not mp is None:
-					return_links(ename,mp,h)
+				part=crawl_movie_page(alt)
+				if not part is None:
+					return_links(ename,part)

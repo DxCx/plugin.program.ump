@@ -240,8 +240,9 @@ class ump():
 		if not self.terminate and isinstance(parts,list) and len(parts)>0:
 			for part in parts:
 				resolver = HostedMediaFile(url=part["url"])
+				transparent = part.get("transparent", False)
 				#check if there is an appropriate url provider
-				if not resolver.valid_url():
+				if not transparent and not resolver.valid_url():
 					self.add_log("no appropriate url provider. Skipping : %s , %s" % (str(self.content_type),str(part["url"])))
 					return False
 			self.tm.add_queue(target=self._on_new_id, args=(parts,name),pri=5)
@@ -339,15 +340,20 @@ class ump():
 		metaf=getattr(meta,self.content_type)
 		#if urls require validation and url is not validated or timed out
 		if not "uptime" in part.keys() or time.time()-part["uptime"]>self.urlval_tout:
-			resolver = HostedMediaFile(url=part["url"])
+			transparent = part.get("transparent", False)
 			try:
 				part["urls"]={}
-				resolved_url = resolver.resolve()
-				self.add_log("validating %s:%s"%(resolver.get_host(),resolver.get_media_id()))
-
-				# Mirror duplication check
-				upname=resolver.get_host()
-				uphash=resolver.get_media_id()
+				if not transparent:
+					resolver = HostedMediaFile(url=part["url"])
+					resolved_url = resolver.resolve()
+					# Mirror duplication check
+					upname=resolver.get_host()
+					uphash=resolver.get_media_id()
+				else:
+					resolved_url = part["url"]
+					upname="transparent"
+					uphash=part["url"]
+				self.add_log("validating %s:%s"%(upname,uphash))
 				if not len(upname) or not len(uphash) or not resolved_url:
 					self.add_log("%s failed validation" % part["url"])
 					return False
@@ -381,7 +387,7 @@ class ump():
 					part["urls"][key]["meta"]=m
 				except (timeout,urllib2.URLError,urllib2.HTTPError),e:
 					part["urls"].pop(key)
-					self.add_log(" dismissed due to network error: %s" % part["url_provider_name"])
+					self.add_log(" dismissed due to network error: %s " % part["url"])
 				except Exception,e:
 					self.notify_error(e)
 					part["urls"].pop(key)

@@ -5,8 +5,19 @@ domain="http://www.turkanime.tv/"
 encoding="utf-8"
 
 
-def return_links(name,mp,h,fs):
-	parts=[{"url_provider_name":mp, "url_provider_hash":h}]
+def return_links(name,url,fs):
+	mpage=ump.get_page(url,encoding)
+	iframe = re.findall("<iframe.+?src=\"(.+?)\"", mpage, re.DOTALL)
+	if len(iframe) == 3:
+		video_url = iframe[0]
+	else:
+		links = re.findall("<a\shref=\"([^\"]+?)\"\starget=\"_blank\"><img\ssrc=\"imajlar/kontrol.png\"\salt=\"\"></a>", mpage, re.DOTALL)
+		if len(links) != 1:
+			ump.add_log("unable to parse %s" % url)
+			return None
+		video_url = links[0]
+
+	parts=[{"url": video_url}]
 	prefix=""
 	if not fs == "Varsayilan":
 		prefix="[FS:%s]"%fs
@@ -17,50 +28,9 @@ def scrape_moviepage(url,fansub,name):
 	pg=ump.get_page(domain+url,encoding)
 	videos=re.findall("'#video','(.*?)','#video'.*?icon-play\"></i>(.*?)</a>",pg)
 	for video in videos:
-		up=unidecode(video[1].replace(" ","").lower())
-		u=video[0]
-		try:
-			if up=="mail": 
-				up="mailru"
-				continue
-				#skip mailru this provider is messed up
-			elif up=="myvi":
-				uphash=re.findall("embed/html/(.*?)\"",ump.get_page(domain+u,encoding))[0]
-			elif up=="odnoklassniki": 
-				up="okru"
-				uphash=re.findall("/videoembed/(.*?)\"",ump.get_page(domain+u,encoding))[0]
-			elif up=="sibnet":
-				continue
-				#skip this provider it uses m3u8.
-				uphash=re.findall("videoid\=([0-9]*?)\"",ump.get_page(domain+u,encoding))[0]
-			elif up in ["cloudy","videohut","videoraj"]:
-				uphash=re.findall("\?id\=(.*?)\"",ump.get_page(domain+u,encoding))[0]
-			elif up == "vk":
-				up="vkext"
-				hash=re.findall("\?vid\=(.*?)\"",ump.get_page(domain+u,encoding))[0]
-				oid,video_id,embed_hash=hash.split("_")
-				uphash="http://vk.com/video_ext.php?oid="+oid+"&id="+video_id+"&hash="+embed_hash
-			elif up == "turkanime":
-				hash=re.findall("(http\://www.schneizel.net/video/index.php\?vid\=.*?)\"",ump.get_page(domain+u,encoding))[0]
-				uphash={"url":hash,"referer":"http://www.turkanime.tv/bolum/shingeki-no-kyojin-25-bolum-final&fansub=PeaceFansub&giris=OK&video=690863"}
-				up="google"
-			elif up == "dailymotion":
-				#todo prepare a decoder
-				uphash=re.findall("/video/(.*?)\"",ump.get_page(domain+u,encoding))[0]
-			elif up == "kiwi":
-				uphash=re.findall("v2/(.*?)\"",ump.get_page(domain+u,encoding))[0]
-			elif up == "meta":
-				#todo this provider is messed up
-				continue
-				#todo prepare a decoder
-				uphash=re.findall("iframe/(.*?)/",ump.get_page(domain+u,encoding))[0]
-			else:
-				print "Unknown URL Provider: %s"%up
-				continue
-		except IndexError:
-			print "Turkanimetv changed regex for : %s, skipping"%up
-			continue
-		return_links(name,up,uphash,fansub)	
+		url = domain+video[0]
+		return_links(name, url, fansub)
+		continue
 		
 def run(ump):
 	globals()['ump'] = ump
@@ -116,6 +86,6 @@ def run(ump):
 	for fansub in fansubs:
 		f=fansub[1]
 		u=fansub[0]+"fansub="+fansub[1]+"&giris=OK"
-		scrape_moviepage(u,f,name)
+		scrape_moviepage(u,f,i["title"])
 	if len(fansubs)==0:
-		scrape_moviepage(url,"Varsayilan",name)
+		scrape_moviepage(url,"Varsayilan",i["title"])

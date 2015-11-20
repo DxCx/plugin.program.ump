@@ -126,10 +126,9 @@ def run(ump):
 				for link in links:
 					qualities=re.findall('value="(.*?)"',link)
 					for quality in qualities:
+						found = True
 						url=quality.decode("base-64")
-						if "googlevideo.com" in url or "blogspot.com" in url:
-							found=True
-							parts=[{"url_provider_name":"google", "url_provider_hash":{"html5":True,"url":url}}]
-							ump.add_mirror(parts,"%s %s"%(prefix,i["title"]))
+						parts = [{"url": url}]
+						ump.add_mirror(parts,"%s %s"%(prefix,i["title"]))
 		if not found:
 			ump.add_log("kissanime can't find any links for %s"%i["title"])
