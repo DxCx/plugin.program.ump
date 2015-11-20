@@ -32,6 +32,7 @@ def run(ump):
 						ump.add_log("dizimag can't match %s %dx%d %s"%(i["tvshowtitle"],i["season"],i["episode"],i["title"]))
 						return None
 				ump.add_log("dizimag matched %s %dx%d %s"%(i["tvshowtitle"],i["season"],i["episode"],i["title"]))
+				mname="%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"])
 				if version==2:
 					ids=re.findall("kaynakdegis\('([0-9]*?)'",epage)
 					for id in set(ids):
@@ -44,13 +45,13 @@ def run(ump):
 						else:
 							continue
 						videos=json.loads(data)
-						vlink={"html5":True}
-						for k in range(1,7):
-							if "videolink%d"%k in videos.keys():
-								vlink[videos["videokalite%d"%k]]=videos["videolink%d"%k]
-						parts=[{"url_provider_name":"google", "url_provider_hash":vlink}]
-						ump.add_mirror(parts,"%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"]))	
-
+						if type(videos) is not type(dict):
+						    continue
+						vlink=[]
+						for k in videos.keys():
+						    if k.startswith("videolink"):
+							    part={"url": videos[k]}
+							    ump.add_mirror([part], mname)
 				#dizimag web site is on beta stage an subject to change, they keep below algo for videos but they dont use it. so lets keep below code for now
 				if version==1:
 					sources=re.findall("Change_Source\(([0-9]*?),'(.*?)'\)",epage)
@@ -75,7 +76,6 @@ def run(ump):
 							script=ump.get_page(domain+'/service/idmg',encoding,query=query)
 							#print script.encode("ascii","ignore")
 						vids=re.findall('file:"(.*?)",label: "(.*?)"',script)
-						vlink={"html5":True}
 						if len(vids)>0:
 							method=1
 						else:
@@ -88,15 +88,9 @@ def run(ump):
 								if method==1:
 									chrs=vid[0].split("\\x")
 									vidurl="".join(chr(int(x,16)) for x in chrs if not x=="")
-									if "//217.20.157.199" in vidurl:
-										upname="okru"
-									else:
-										upname="google"
 								else:
-									upname="google"
 									vidurl=vid[0]
-								vlink[vid[1]]=vidurl
-							parts=[{"url_provider_name":upname, "url_provider_hash":vlink}]
-							ump.add_mirror(parts,"%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"]))	
+								part={"url": vidurl}
+								ump.add_mirror([part],mname)	
 				return None
 	ump.add_log("dizimag can't match %s %dx%d %s"%(i["tvshowtitle"],i["season"],i["episode"],i["title"]))

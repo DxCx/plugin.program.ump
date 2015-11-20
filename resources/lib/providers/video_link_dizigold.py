@@ -39,22 +39,21 @@ def run(ump):
 				##new player 
 				vid=re.findall('var view_id="([0-9]*?)"',epage)
 				if len(links)>0:
-					mirrors={"html5":True}
+					part_list = []
 					for link in links:
-						mirrors[link[1].replace("\\","")]=link[0].replace("\\","")
-					parts=[{"url_provider_name":"google", "url_provider_hash":mirrors}]
-					ump.add_mirror(parts,"%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"]))				
-					found=True
+						part_list.append({"url": link[0].replace("\\",""), "resolution": link[1].replace("\\","")})
 				elif len(vid)>0:
 					data={"tip":"view","id":vid[0]}
 					iframe=ump.get_page(domain+"/sistem/ajax.php",encoding,referer=url,header={"X-Requested-With":"XMLHttpRequest"},data=data)
 					vkext=re.findall('\?oid=(.*?)"',iframe)
 					if len(vkext)>0:
-						parts=[{"url_provider_name":"vkext", "url_provider_hash":"https://vk.com/video_ext.php?oid=%s"%vkext[0].replace("\\","")}]
-						ump.add_mirror(parts,"%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"]))
-						found=True
-				if not found:
+						part_list=[{"url":"https://vk.com/video_ext.php?oid=%s"%vkext[0].replace("\\","")}]
+                                if not len(part_list):
 					ump.add_log("dizigold : link is down %s %dx%d %s"%(i["tvshowtitle"],i["season"],i["episode"],i["title"]))
 					return None
-				break
+
+				mname = "%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"])
+				for part in part_list:
+				    ump.add_mirror([part], mname)
+				return None
 	ump.add_log("dizigold can't match %s %dx%d %s"%(i["tvshowtitle"],i["season"],i["episode"],i["title"]))

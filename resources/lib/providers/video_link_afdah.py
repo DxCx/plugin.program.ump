@@ -8,20 +8,6 @@ matches=[]
 max_match=3
 max_pages=10
 
-def codify(prv,path,query=""):
-	path=path.replace(" ","")
-	if prv in ["movshare","vodlocker","sharesix","novamov","nowvideo","divxstage","sharerepo","videoweed","thefile","stagevu","vidxden","filenuke","vidbull","ishared"]:
-		hash=path.split("/")[-1]
-		if hash not in ["embed.php"]:
-			return hash
-	if prv in ["zalaa","uploadc","mightyupload"]:
-		return path.split("/")[-2]
-
-	if prv in ["movshare"]:
-		return query.split("=")[1].replace("&","")
-	
-	return None
-
 def match_results(results,names):
 	exact,page,result=False,None,None
 	for result in results:
@@ -44,7 +30,7 @@ def match_results(results,names):
 		if exact:
 			break
 
-	return exact,page,result
+	return exact,page,domain+result
 
 #func borrowed from salts
 def caesar(plaintext, shift):
@@ -69,14 +55,13 @@ def run(ump):
 		query={"search":name,"type":"title"}
 		page1=ump.get_page(domain+"/wp-content/themes/afdah/ajax-search.php",encoding,data=query,referer=domain)
 		results=re.findall('href="(.*?)"',page1)
-		exact,page,result=match_results(results,names)
+		exact,page,url=match_results(results,names)
 
 	if not exact:
 		ump.add_log("afdah can't match %s"%names[0])
 		return None
-	mirrors=re.findall('href="(.*?)" target="_blank">',page,re.DOTALL)
+	mirrors=re.findall('<a\srel="nofollow"\shref="(.*?)"\starget="_blank"><img\ssrc="/player/play_video\.gif"\sborder="0"></a>',page,re.DOTALL)
 	embeds=re.findall('href="(http://afdah.tv/embed.*?)" target\="new">',page,re.DOTALL)
-
 
 	if "This movie is of poor quality" in page:
 		mname="[TS]%s" % i["title"]
@@ -93,46 +78,24 @@ def run(ump):
 			plaintext = caesar(encoded[0].decode('base-64'), 13).decode('base-64')
 		iframe=re.findall("\<iframe.*?src='(.*?)'",plaintext)
 		glinks=re.findall('file: "(.*?)", label: "(.*?)" }',plaintext)
-		videomega=re.findall("http://videomega.tv/validatehash.php\?hashkey\=([0-9]*?)'",plaintext)
+		videomega=re.findall("(http://videomega.tv/validatehash.php\?hashkey\=[0-9]*?)'",plaintext)
 
 		if len(videomega)>0:
-			urls={"referer":domain,"key":videomega[0]}
-			prv="videomega"
-			ump.add_log("afdah decoded %s %s" % (mname,prv))
-			parts=[{"url_provider_name":prv, "url_provider_hash":urls}]
-			ump.add_mirror(parts,mname)
-
-
+			part={"referer":domain,"url":videomega[0]}
+			ump.add_mirror([part],mname)
 		elif len(glinks)>0:
-			urls={"html5":True}
 			for glink in glinks:
 				if not glink[0][-6:] == "sd.mp4":
-					urls[glink[1]]=glink[0]
-			if len(urls.keys())>1:
-				prv="google"
-				ump.add_log("afdah decoded %s %s" % (mname,prv))
-				parts=[{"url_provider_name":prv, "url_provider_hash":urls}]
-				ump.add_mirror(parts,mname)
-
-			
+				    part = {"url": glink[0], "resolution": glink[1]}
+				    ump.add_mirror([part],mname)
 		elif len(iframe)>0:
-			uri = urlparse.urlparse(iframe[0])
-			prv=uri.hostname.split(".")[-2]
-			hash=codify(prv,uri.path,uri.query)
-			if hash is None: 
-				continue
-			ump.add_log("afdah decoded %s %s" % (mname,prv))
-			parts=[{"url_provider_name":prv, "url_provider_hash":hash}]
-			ump.add_mirror(parts,mname)
+			part={"referer":domain, "url":iframe[0]}
+			ump.add_mirror([part],mname)
+		else:
+			ump.add_log("unable to parse %s" % embed)
 
 	for mirror in mirrors:
-		uri = urlparse.urlparse(mirror)
-		prv=uri.hostname.split(".")[-2]
-		hash=codify(prv,uri.path)
-		if hash is None: 
-			continue
-		ump.add_log("afdah decoded %s %s" % (mname,prv))
-		parts=[{"url_provider_name":prv, "url_provider_hash":hash}]
-		ump.add_mirror(parts,mname)
+		part={"referer":domain,"url":mirror}
+		ump.add_mirror([part],mname)
 	ump.add_log("afdah finished crawling %d mirrors"%(len(mirrors)+len(embeds)))
 	return None

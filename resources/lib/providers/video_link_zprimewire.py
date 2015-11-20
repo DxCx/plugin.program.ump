@@ -8,15 +8,6 @@ matches=[]
 max_match=3
 max_pages=10
 
-def codify(prv,path):
-	path=path.replace(" ","")
-	if prv in ["movshare","vodlocker","sharesix","novamov","nowvideo","divxstage","sharerepo","videoweed","thefile","stagevu","vidxden","filenuke","vidbull"]:
-		return path.split("/")[-1]
-	elif prv in ["zalaa","uploadc","mightyupload"]:
-		return path.split("/")[-2]
-	else:
-		return None
-
 def match_results(results,names):
 	exact,page,result=False,None,None
 	for result in results:
@@ -90,17 +81,11 @@ def run(ump):
 		page=ump.get_page(domain+"/external.php?"+external[1],encoding)
 		link=re.findall('frame src="(http.*?)"',page)
 		if len(link)>0:
-			uri = urlparse.urlparse(link[0])
 			if is_serie:
 				mname="[%s] %s S%dxE%d %s" % (external[0].upper(),i["tvshowtitle"],i["season"],i["episode"],i["title"])
 			else:
 				mname="[%s] %s" % (external[0].upper(),i["title"])
-			prv=uri.hostname.split(".")[-2]
-			hash=codify(prv,uri.path)
-			if hash is None: 
-				continue
-			ump.add_log("Primewire decoded %s %s" % (mname,prv))
-			parts=[{"url_provider_name":prv, "url_provider_hash":hash}]
-			ump.add_mirror(parts,mname)
+			part={"url":link[0]}
+			ump.add_mirror([part],mname)
 	ump.add_log("Primewire finished crawling %d mirrors"%len(externals))
 	return None

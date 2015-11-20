@@ -25,16 +25,13 @@ def run(ump):
 			url=serie.getElementsByTagName("url")[0].lastChild.data+"/sezon-"+str(i["season"])+"/bolum-"+str(i["episode"])
 			epage=ump.get_page(url,encoding)
 			if "<title>Sayfa Bulunamad" in epage:
-				break
+				continue
 			ump.add_log("dizilab matched %s %dx%d %s"%(i["tvshowtitle"],i["season"],i["episode"],i["title"]))
-			links=re.findall('file: "(.*?)",.*?label: "(.*?)",.*?type: "mp4"',epage,re.DOTALL)
+			links=re.findall('file: "(.*?)",\s*label: "(.*?)",\s*type:\s"mp4"',epage,re.DOTALL | re.MULTILINE)
+			mname="%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"])
 			if len(links)>0:
-				vlinks={"html5":True}
 				for link in links:
-					vlinks[link[1]]=link[0]
-				parts=[{"url_provider_name":"google", "url_provider_hash":vlinks}]
-				ump.add_mirror(parts,"%s %dx%d %s" % (i["tvshowtitle"],i["season"],i["episode"],i["title"]))				
-				return None
-			break
-
+				    part = {"url": link[0], "resolution": link[1]}
+				    ump.add_mirror([part],mname)				
+			return None
 	ump.add_log("dizilab can't match %s %dx%d %s"%(i["tvshowtitle"],i["season"],i["episode"],i["title"]))
